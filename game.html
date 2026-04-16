@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Flappy Flamingo Clicker</title>
+    <style>
+        body {
+            background: #87ceeb;
+            margin: 0;
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        #game {
+            background: #cceeff;
+            border: 2px solid #333;
+            display: block;
+            margin-top: 10px;
+        }
+        #ui {
+            margin-top: 10px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        button {
+            padding: 6px 10px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+        #stats {
+            margin-top: 5px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+
+<h2>Flappy Flamingo + Clicker</h2>
+
+<canvas id="game" width="400" height="600"></canvas>
+
+<div id="ui">
+    <button onclick="buyPassive()">Buy Passive Income (+1/s) – 50 Coins</button>
+    <button onclick="buyPipeReward()">Upgrade Pipe Reward (+2 coins) – 75 Coins</button>
+    <button onclick="buyGap()">Wider Gaps – 100 Coins</button>
+</div>
+
+<div id="stats"></div>
+
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+const statsEl = document.getElementById("stats");
+
+// --- GAME STATE ---
+let flamingo = { x: 80, y: 300, vel: 0, w: 30, h: 30 };
+let gravity = 0.4;
+let flapStrength = -7;
+
+let pipes = [];
+let pipeGap = 150;
+let pipeSpeed = 2;
+
+let score = 0;
+let coins = 0;          // main currency
+let passiveIncome = 0;  // coins per second
+let pipeReward = 5;     // coins per pipe passed
+
+let gameOver = false;
+
+// --- INPUT: flap + clicker coin ---
+canvas.addEventListener("mousedown", () => {
+    if (gameOver) return;
+    flamingo.vel = flapStrength;
+    coins += 1; // clicker tap reward
+});
+
+// --- PIPE SPAWNING ---
+function spawnPipe() {
+    if (gameOver) return;
+    let topHeight = Math.random() * 250 + 50;
+    pipes.push({
+        x: canvas.width,
+        top: topHeight,
+        bottom: topHeight + pipeGap,
+        scored: false
+    });
+}
+setInterval(spawnPipe, 2000);
+
+// --- PASSIVE INCOME ---
+setInterval(() => {
+    if (gameOver) return;
+    coins += passiveIncome;
+}, 1000);
+
+// --- UPGRADE FUNCTIONS ---
+function buyPassive() {
+    if (coins >= 50) {
+        coins -= 50;
+        passiveIncome += 1;
+    }
+}
+function buyPipeReward() {
+    if (coins >= 75) {
+        coins -= 75;
+        pipeReward += 2;
+    }
+}
+function buyGap() {
+    if (coins >= 100) {
+        coins -= 100;
+        pipeGap += 20;
+    }
+}
+
+// --- GAME LOOP ---
+function loop() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    if (!gameOver) {
+        // Flamingo physics
+        flamingo.vel += gravity;
+        flamingo.y += flamingo.vel;
+
+        // Ground / ceiling check
+        if (flamingo.y + flamingo.h > canvas.height || flamingo.y < 0) {
+            endGame();
+        }
+    }
+
+    // Draw flamingo (placeholder)
+    ctx.fillStyle = "pink";
+    ctx.fillRect(flamingo.x, flamingo.y, flamingo.w, flamingo.h);
+
+    // Pipes
+    ctx.fillStyle = "green";
+    pipes.forEach((p) => {
+        if (!gameOver) p.x -= pipeSpeed;
+
+        // Top pipe
+        ctx.fillRect(p.x, 0, 50, p.top);
+        // Bottom pipe
+        ctx.fillRect(p.x, p.bottom, 50, canvas.height - p.bottom);
+
+        // Score + coins when passed
+        if (!p.scored && p.x + 50 < flamingo.x) {
+            p.scored = true;
+            score++;
+            coins += pipeReward; // coins for surviving pipe
+        }
+
+        // Collision
+        if (!gameOver &&
+            flamingo.x < p.x + 50 &&
+            flamingo.x + flamingo.w > p.x &&
+            (flamingo.y < p.top || flamingo.y + flamingo.h > p.bottom)
+        ) {
+            endGame();
+        }
+    });
+
+    // Remove off-screen pipes
+    pipes = pipes.filter(p => p.x + 50 > 0);
+
+    // UI text on canvas
+    ctx.fillStyle = "black";
+    ctx.font = "20px Arial";
+    ctx.fillText("Score: " + score, 10, 30);
+    ctx.fillText("Coins: " + coins, 10, 55);
+
+    if (gameOver) {
+        ctx.fillStyle = "rgba(0,0,0,0.5)";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = "white";
+        ctx.font = "32px Arial";
+        ctx.fillText("Game Over", 110, 260);
+        ctx.font = "20px Arial";
+        ctx.fillText("Final Score: " + score, 135, 295);
+        ctx.fillText("Click to reload", 135, 325);
+    }
+
+    // Stats under canvas
+    statsEl.textContent =
+        "Score: " + score +
+        " | Coins: " + coins +
+        " | Passive: " + passiveIncome + "/s" +
+        " | Pipe Reward: " + pipeReward +
+        " | Gap: " + pipeGap;
+
+    requestAnimationFrame(loop);
+}
+
+function endGame() {
+    gameOver = true;
+    canvas.onclick = () => location.reload();
+}
+
+loop();
+</script>
+
+</body>
+</html>
